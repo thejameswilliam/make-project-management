@@ -1,7 +1,10 @@
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { STAGE_NAMES, STATUS_LABELS, STATUS_COLORS } from "@/lib/utils"
+import { DeleteProjectButton } from "@/components/DeleteProjectButton"
 import { Stage1Panel } from "@/components/stages/Stage1Panel"
 import { Stage2Panel } from "@/components/stages/Stage2Panel"
 import { Stage3Panel } from "@/components/stages/Stage3Panel"
@@ -9,28 +12,48 @@ import { Stage4Panel } from "@/components/stages/Stage4Panel"
 import { Stage5Panel } from "@/components/stages/Stage5Panel"
 
 export default async function ProjectPage({ params }: { params: { id: string } }) {
-  const project = await prisma.project.findUnique({
-    where: { id: params.id },
-    include: {
-      proposedBy: { select: { name: true, email: true } },
-      stage1: true,
-      stage2: true,
-      stage3: true,
-      stage4: { include: { weeklyUpdates: { orderBy: { createdAt: "asc" } } } },
-      stage5: true,
-    },
-  })
+  const session = await getServerSession(authOptions)
+  const sessionUser = session?.user as { id: string; role: string } | undefined
+  const userId = sessionUser?.id ?? ""
+  const userRole = sessionUser?.role ?? "STAFF"
+
+  const [project, leaders] = await Promise.all([
+    prisma.project.findUnique({
+      where: { id: params.id },
+      include: {
+        proposedBy: { select: { name: true, email: true } },
+        stage1: true,
+        stage2: {
+          include: {
+            scores: {
+              include: { user: { select: { name: true, email: true } } },
+            },
+          },
+        },
+        stage3: true,
+        stage4: { include: { weeklyUpdates: { orderBy: { createdAt: "asc" } } } },
+        stage5: true,
+      },
+    }),
+    prisma.user.findMany({
+      where: { role: { in: ["LEADERSHIP", "ADMIN"] } },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+    }),
+  ])
 
   if (!project) notFound()
 
-  const progress = Math.round(((project.currentStage - 1) / 5) * 100)
+  const isFinished = !!project.stage5?.completedAt
+  const progress = isFinished ? 100 : Math.round(((project.currentStage - 1) / 5) * 100)
 
   return (
     <div className="max-w-2xl">
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
           ← All Projects
         </Link>
+        <DeleteProjectButton projectId={project.id} />
       </div>
 
       {/* Header */}
@@ -75,33 +98,40 @@ export default async function ProjectPage({ params }: { params: { id: string } }
       </div>
 
       {/* Stage pipeline */}
-      {project.stage1 && (
-        <Stage1Panel data={project.stage1} />
-      )}
+      {project.stage1 && <Stage1Panel data={project.stage1} />}
 
       <Stage2Panel
         projectId={project.id}
         data={project.stage2}
         currentStage={project.currentStage}
+        userId={userId}
+        userRole={userRole}
+        leaders={leaders}
       />
 
       <Stage3Panel
         projectId={project.id}
         data={project.stage3}
         currentStage={project.currentStage}
+        userRole={userRole}
       />
 
       <Stage4Panel
         projectId={project.id}
         data={project.stage4}
         currentStage={project.currentStage}
-        metric={project.stage3?.scorecardMetric}
+        month1Metric={project.stage3?.month1Metric ?? undefined}
+        month2Metric={project.stage3?.month2Metric ?? undefined}
+        month3Metric={project.stage3?.month3Metric ?? undefined}
+        userRole={userRole}
       />
 
       <Stage5Panel
         projectId={project.id}
         data={project.stage5}
         currentStage={project.currentStage}
+        userRole={userRole}
+        definitionOfDone={project.stage3?.definitionOfDone ?? undefined}
       />
     </div>
   )

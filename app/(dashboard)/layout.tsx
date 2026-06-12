@@ -23,6 +23,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <span className="text-sm text-gray-500">
               {session.user?.name ?? session.user?.email}
             </span>
+            {(session.user as { role?: string })?.role === "ADMIN" && (
+              <Link href="/settings" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
+                Settings
+              </Link>
+            )}
             <SignOutButton />
           </div>
         </div>

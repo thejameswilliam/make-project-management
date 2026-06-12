@@ -4,6 +4,9 @@ import { useState } from "react"
 import { createProject } from "@/app/actions/projects"
 import { cn } from "@/lib/utils"
 
+type CoreValue = { id: string; name: string }
+type OneYearGoal = { id: string; description: string }
+
 type FormData = {
   name: string
   problemStatement: string
@@ -27,7 +30,13 @@ const STEPS = [
   "Review & Submit",
 ]
 
-export function NewProjectForm() {
+export function NewProjectForm({
+  coreValues = [],
+  oneYearGoals = [],
+}: {
+  coreValues?: CoreValue[]
+  oneYearGoals?: OneYearGoal[]
+}) {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -45,8 +54,25 @@ export function NewProjectForm() {
     noDistractionRisk: false,
   })
 
+  // multi-select state for checkbox-based core values
+  const [selectedValues, setSelectedValues] = useState<string[]>([])
+  // multi-select state for checkbox-based goals
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([])
+
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function toggleValue(name: string) {
+    setSelectedValues((prev) =>
+      prev.includes(name) ? prev.filter((v) => v !== name) : [...prev, name]
+    )
+  }
+
+  function toggleGoal(desc: string) {
+    setSelectedGoals((prev) =>
+      prev.includes(desc) ? prev.filter((g) => g !== desc) : [...prev, desc]
+    )
   }
 
   function canAdvance(): boolean {
@@ -57,12 +83,16 @@ export function NewProjectForm() {
         return form.problemStatement.trim().length > 15
       case 3:
         return form.missionAlignment && form.nicheFit && form.tenYearAlignment
-      case 4:
-        return form.coreValueName.trim().length > 0 && form.noCoreValueViolated
+      case 4: {
+        const valueLabel = coreValues.length > 0
+          ? selectedValues.length > 0
+          : form.coreValueName.trim().length > 0
+        return valueLabel && form.noCoreValueViolated
+      }
       case 5:
-        return form.isStrategicException
-          ? form.strategicExceptionNote.trim().length > 0
-          : form.oneYearPlanGoal.trim().length > 0
+        if (form.isStrategicException) return form.strategicExceptionNote.trim().length > 0
+        if (oneYearGoals.length > 0) return selectedGoals.length > 0
+        return form.oneYearPlanGoal.trim().length > 0
       case 6:
         return form.noDistractionRisk
       default:
@@ -74,8 +104,17 @@ export function NewProjectForm() {
     if (!canAdvance()) return
     setLoading(true)
     setError("")
+
+    const resolvedCoreValueName = coreValues.length > 0
+      ? selectedValues.join(", ")
+      : form.coreValueName
+
+    const resolvedOneYearPlanGoal = !form.isStrategicException && oneYearGoals.length > 0
+      ? selectedGoals.join("\n")
+      : form.oneYearPlanGoal
+
     try {
-      await createProject(form)
+      await createProject({ ...form, coreValueName: resolvedCoreValueName, oneYearPlanGoal: resolvedOneYearPlanGoal })
     } catch {
       setError("Something went wrong. Please try again.")
       setLoading(false)
@@ -225,23 +264,51 @@ export function NewProjectForm() {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Core Values Check</h2>
             <p className="text-gray-500 text-sm mt-1">
-              Name at least one Make Core Value this initiative embodies, and confirm no values
-              are violated.
+              {coreValues.length > 0
+                ? "Select the Make Core Values this initiative embodies, and confirm no values are violated."
+                : "Name at least one Make Core Value this initiative embodies, and confirm no values are violated."}
             </p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Core Value(s) Embodied
-            </label>
-            <input
-              type="text"
-              value={form.coreValueName}
-              onChange={(e) => set("coreValueName", e.target.value)}
-              placeholder="e.g. Access, Community, Education"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              autoFocus
-            />
-          </div>
+
+          {coreValues.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-gray-700">Core Value(s) Embodied</p>
+              {coreValues.map((cv) => (
+                <label
+                  key={cv.id}
+                  className={cn(
+                    "flex gap-3 p-3.5 rounded-lg border-2 cursor-pointer transition-colors",
+                    selectedValues.includes(cv.name)
+                      ? "border-orange-500 bg-orange-50"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedValues.includes(cv.name)}
+                    onChange={() => toggleValue(cv.name)}
+                    className="mt-0.5 accent-orange-600 shrink-0"
+                  />
+                  <span className="text-sm font-medium text-gray-900">{cv.name}</span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Core Value(s) Embodied
+              </label>
+              <input
+                type="text"
+                value={form.coreValueName}
+                onChange={(e) => set("coreValueName", e.target.value)}
+                placeholder="e.g. Access, Community, Education"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                autoFocus
+              />
+            </div>
+          )}
+
           <label
             className={cn(
               "flex gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors",
@@ -318,20 +385,46 @@ export function NewProjectForm() {
               </div>
             </label>
           </div>
+
           {!form.isStrategicException ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Which 1-Year Plan goal does this support?
-              </label>
-              <textarea
-                value={form.oneYearPlanGoal}
-                onChange={(e) => set("oneYearPlanGoal", e.target.value)}
-                rows={3}
-                placeholder="Point to at least one current 1-Year Plan goal…"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
-                autoFocus
-              />
-            </div>
+            oneYearGoals.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">Which goal(s) does this support?</p>
+                {oneYearGoals.map((goal) => (
+                  <label
+                    key={goal.id}
+                    className={cn(
+                      "flex gap-3 p-3.5 rounded-lg border-2 cursor-pointer transition-colors",
+                      selectedGoals.includes(goal.description)
+                        ? "border-orange-500 bg-orange-50"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedGoals.includes(goal.description)}
+                      onChange={() => toggleGoal(goal.description)}
+                      className="mt-0.5 accent-orange-600 shrink-0"
+                    />
+                    <span className="text-sm text-gray-800">{goal.description}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Which 1-Year Plan goal does this support?
+                </label>
+                <textarea
+                  value={form.oneYearPlanGoal}
+                  onChange={(e) => set("oneYearPlanGoal", e.target.value)}
+                  rows={3}
+                  placeholder="Point to at least one current 1-Year Plan goal…"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                  autoFocus
+                />
+              </div>
+            )
           ) : (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -390,11 +483,18 @@ export function NewProjectForm() {
               label="Core Focus"
               value="Mission alignment ✓ · Niche fit ✓ · 10-Year alignment ✓"
             />
-            <ReviewLine label="Core Value" value={form.coreValueName} />
+            <ReviewLine
+              label="Core Value"
+              value={coreValues.length > 0 ? selectedValues.join(", ") : form.coreValueName}
+            />
             <ReviewLine
               label={form.isStrategicException ? "Strategic Exception" : "1-Year Plan Goal"}
               value={
-                form.isStrategicException ? form.strategicExceptionNote : form.oneYearPlanGoal
+                form.isStrategicException
+                  ? form.strategicExceptionNote
+                  : oneYearGoals.length > 0
+                  ? selectedGoals.join(", ")
+                  : form.oneYearPlanGoal
               }
             />
           </div>

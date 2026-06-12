@@ -145,23 +145,30 @@ export function CheckCard({
   onChange,
   title,
   description,
+  disabled = false,
 }: {
   checked: boolean
   onChange: (v: boolean) => void
   title: string
   description?: string
+  disabled?: boolean
 }) {
   return (
     <label
       className={cn(
-        "flex gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors",
-        checked ? "border-orange-500 bg-orange-50" : "border-gray-200 bg-white hover:border-gray-300"
+        "flex gap-3 p-4 rounded-lg border-2 transition-colors",
+        disabled
+          ? "cursor-not-allowed opacity-60 border-gray-200 bg-gray-50"
+          : checked
+          ? "border-orange-500 bg-orange-50 cursor-pointer"
+          : "border-gray-200 bg-white hover:border-gray-300 cursor-pointer"
       )}
     >
       <input
         type="checkbox"
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={(e) => !disabled && onChange(e.target.checked)}
+        disabled={disabled}
         className="mt-0.5 accent-orange-600 shrink-0"
       />
       <div>

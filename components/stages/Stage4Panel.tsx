@@ -21,13 +21,21 @@ export function Stage4Panel({
   projectId,
   data,
   currentStage,
-  metric,
+  month1Metric,
+  month2Metric,
+  month3Metric,
+  userRole,
 }: {
   projectId: string
   data: Stage4WithUpdates | null
   currentStage: number
-  metric?: string
+  month1Metric?: string
+  month2Metric?: string
+  month3Metric?: string
+  userRole: string
 }) {
+  const isLeader = userRole === "LEADERSHIP" || userRole === "ADMIN"
+  const monthMetrics = [month1Metric, month2Metric, month3Metric].filter(Boolean) as string[]
   const isLocked = currentStage < 4
   const isCompleted = currentStage > 4
   const [expanded, setExpanded] = useState(false)
@@ -90,7 +98,7 @@ export function Stage4Panel({
             <Section label="Completion Report">
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.completionReport}</p>
             </Section>
-            <Section label="Weekly Check-ins ({data.weeklyUpdates.length})">
+            <Section label={`Weekly Check-ins (${data.weeklyUpdates.length})`}>
               <div className="space-y-2">
                 {data.weeklyUpdates.map((u) => (
                   <WeekRow key={u.id} update={u} />
@@ -119,7 +127,13 @@ export function Stage4Panel({
                 Latest: {isOffTrack ? "⚠ Off Track" : "✓ On Track"} — week of {formatWeekOf(latestUpdate.weekOf)}
               </p>
             )}
-            {metric && <p className="text-xs text-gray-400 mt-0.5">Tracking: {metric}</p>}
+            {monthMetrics.length > 0 && (
+              <div className="mt-1 space-y-0.5">
+                {monthMetrics.map((m, i) => (
+                  <p key={i} className="text-xs text-gray-400">Month {i + 1}: {m}</p>
+                ))}
+              </div>
+            )}
           </div>
           <button
             onClick={() => { setShowCheckin((s) => !s); setShowComplete(false) }}
@@ -153,8 +167,8 @@ export function Stage4Panel({
                 </div>
               </Field>
             </div>
-            {metric && (
-              <Field label={`${metric} this week`}>
+            {monthMetrics.length > 0 && (
+              <Field label="Metric value this week">
                 <TextInput value={metricValue} onChange={setMetricValue} placeholder="Enter this week's metric value" />
               </Field>
             )}
@@ -197,8 +211,8 @@ export function Stage4Panel({
           </p>
         )}
 
-        {/* Complete stage 4 */}
-        <div className="border-t border-gray-100 pt-4">
+        {/* Complete stage 4 — leadership only */}
+        {isLeader && <div className="border-t border-gray-100 pt-4">
           <button
             onClick={() => { setShowComplete((s) => !s); setShowCheckin(false) }}
             className="text-sm text-gray-600 hover:text-gray-900 font-medium"
@@ -227,7 +241,7 @@ export function Stage4Panel({
               </button>
             </div>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   )

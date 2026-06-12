@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { saveStage5 } from "@/app/actions/projects"
+import { saveStage5, saveStage5Draft } from "@/app/actions/projects"
+import { useRouter } from "next/navigation"
 import {
   StepBar, StepNav, StepHeading, Field, TextArea,
   StagePanelHeader, Section, CheckRow,
@@ -48,13 +49,19 @@ export function Stage5Panel({
   projectId,
   data,
   currentStage,
+  userRole,
+  definitionOfDone,
 }: {
   projectId: string
   data: Stage5Data | null
   currentStage: number
+  userRole: string
+  definitionOfDone?: string
 }) {
   const isLocked = currentStage < 5
   const isCompleted = !!data?.completedAt
+  const isLeader = userRole === "LEADERSHIP" || userRole === "ADMIN"
+  const router = useRouter()
   const [expanded, setExpanded] = useState(false)
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -81,7 +88,13 @@ export function Stage5Panel({
   async function handleSubmit() {
     setLoading(true)
     try {
-      await saveStage5(projectId, form)
+      if (isLeader) {
+        await saveStage5(projectId, form)
+      } else {
+        await saveStage5Draft(projectId, form)
+        setLoading(false)
+        router.refresh()
+      }
     } catch {
       setLoading(false)
     }
@@ -142,7 +155,15 @@ export function Stage5Panel({
         {step === 1 && (
           <div className="space-y-4">
             <StepHeading title="Completion Review" subtitle="Review each Definition of Done criterion. 'Done' is binary — not 'mostly done'." />
-            <Field label="Definition of Done Review">
+            {definitionOfDone && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                  Definition of Done
+                </p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{definitionOfDone}</p>
+              </div>
+            )}
+            <Field label="Completion Review">
               <TextArea
                 value={form.definitionOfDoneReview}
                 onChange={(v) => set("definitionOfDoneReview", v)}
@@ -262,7 +283,7 @@ export function Stage5Panel({
         <StepNav
           step={step} total={TOTAL_STEPS} canNext={canAdvance()} loading={loading}
           onBack={() => setStep((s) => s - 1)} onNext={() => setStep((s) => s + 1)}
-          onSubmit={handleSubmit} submitLabel="Close Out Project →"
+          onSubmit={handleSubmit} submitLabel={isLeader ? "Close Out Project →" : "Save Progress"}
         />
       </div>
     </div>

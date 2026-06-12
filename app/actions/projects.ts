@@ -5,6 +5,18 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 
+type SessionUser = { id: string; role: string }
+
+async function getUser(): Promise<SessionUser> {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) throw new Error("Unauthorized")
+  return session.user as SessionUser
+}
+
+function assertLeader(role: string) {
+  if (role !== "LEADERSHIP" && role !== "ADMIN") throw new Error("Leadership role required")
+}
+
 // ─── Stage 1 ────────────────────────────────────────────────────────────────
 
 type Stage1Input = {
@@ -22,14 +34,13 @@ type Stage1Input = {
 }
 
 export async function createProject(data: Stage1Input) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) throw new Error("Unauthorized")
-  const userId = (session.user as { id: string }).id
+  const { id: userId } = await getUser()
 
   const project = await prisma.project.create({
     data: {
       name: data.name,
       proposedById: userId,
+      currentStage: 2,
       stage1: {
         create: {
           problemStatement: data.problemStatement,
@@ -51,9 +62,15 @@ export async function createProject(data: Stage1Input) {
   redirect(`/projects/${project.id}`)
 }
 
+export async function deleteProject(projectId: string) {
+  await getUser()
+  await prisma.project.delete({ where: { id: projectId } })
+  redirect("/")
+}
+
 // ─── Stage 2 ────────────────────────────────────────────────────────────────
 
-type Stage2Input = {
+type Stage2DraftInput = {
   description: string
   expectedOutcome: string
   targetAudience: string
@@ -70,7 +87,52 @@ type Stage2Input = {
   noResourceConflict: boolean
   estimatedLaunchDate: string
   isWithin90Days: boolean
-  quarterlyMilestones: string
+}
+
+export async function saveStage2Draft(projectId: string, data: Stage2DraftInput) {
+  await getUser()
+
+  await prisma.stage2Data.upsert({
+    where: { projectId },
+    create: {
+      projectId,
+      ...data,
+      fundingSource: data.fundingSource as any,
+      newStaffingNote: data.newStaffingNote || null,
+      quarterlyMilestones: null,
+      // Initialize score fields to 0 until leaders score
+      scoreStratAlignment: 0,
+      scoreImpact: 0,
+      scoreFeasibility: 0,
+      scoreCompetency: 0,
+      scoreRisk: 0,
+      scoreTimeToImpact: 0,
+      scoreTotal: 0,
+    },
+    update: {
+      // Only update the draft fields — never overwrite scored values
+      description: data.description,
+      expectedOutcome: data.expectedOutcome,
+      targetAudience: data.targetAudience,
+      oneTimeCost: data.oneTimeCost,
+      ongoingCost: data.ongoingCost,
+      revenueOrSavings: data.revenueOrSavings,
+      fundingSource: data.fundingSource as any,
+      staffHoursLaunch: data.staffHoursLaunch,
+      staffHoursSustain: data.staffHoursSustain,
+      noStaffDisruption: data.noStaffDisruption,
+      newStaffingNote: data.newStaffingNote || null,
+      spaceRequired: data.spaceRequired,
+      equipmentRequired: data.equipmentRequired,
+      noResourceConflict: data.noResourceConflict,
+      estimatedLaunchDate: data.estimatedLaunchDate,
+      isWithin90Days: data.isWithin90Days,
+    },
+  })
+  // No redirect — client calls router.refresh()
+}
+
+type LeaderScoreInput = {
   scoreStratAlignment: number
   scoreImpact: number
   scoreFeasibility: number
@@ -79,53 +141,70 @@ type Stage2Input = {
   scoreTimeToImpact: number
 }
 
-function calcScore(d: Stage2Input): number {
-  return (
-    d.scoreStratAlignment * 0.25 +
-    d.scoreImpact * 0.2 +
-    d.scoreFeasibility * 0.2 +
-    d.scoreCompetency * 0.15 +
-    d.scoreRisk * 0.1 +
-    d.scoreTimeToImpact * 0.1
-  )
-}
+export async function submitLeaderScore(projectId: string, scores: LeaderScoreInput) {
+  const { id: userId, role } = await getUser()
+  assertLeader(role)
 
-export async function saveStage2(projectId: string, data: Stage2Input) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) throw new Error("Unauthorized")
+  const stage2 = await prisma.stage2Data.findUnique({ where: { projectId } })
+  if (!stage2) throw new Error("Stage 2 info not yet saved")
 
-  const scoreTotal = Math.round(calcScore(data) * 100) / 100
+  await prisma.stage2Score.upsert({
+    where: { stage2Id_userId: { stage2Id: stage2.id, userId } },
+    create: { stage2Id: stage2.id, userId, ...scores },
+    update: { ...scores },
+  })
 
-  await prisma.$transaction([
-    prisma.stage2Data.upsert({
-      where: { projectId },
-      create: {
-        projectId,
-        ...(data as any),
-        fundingSource: data.fundingSource as any,
-        newStaffingNote: data.newStaffingNote || null,
-        quarterlyMilestones: data.quarterlyMilestones || null,
-        scoreTotal,
-        completedAt: new Date(),
-      },
-      update: {
-        ...(data as any),
-        fundingSource: data.fundingSource as any,
-        newStaffingNote: data.newStaffingNote || null,
-        quarterlyMilestones: data.quarterlyMilestones || null,
-        scoreTotal,
-        completedAt: new Date(),
-      },
-    }),
-    prisma.project.update({
-      where: { id: projectId },
-      data: {
-        currentStage: scoreTotal >= 3.5 ? 3 : 2,
-        status: scoreTotal < 2.5 ? "PARKED" : "ACTIVE",
-      },
-    }),
+  // Check if all leaders/admins have now scored
+  const [allLeaders, allScores] = await Promise.all([
+    prisma.user.findMany({ where: { role: { in: ["LEADERSHIP", "ADMIN"] } } }),
+    prisma.stage2Score.findMany({ where: { stage2Id: stage2.id } }),
   ])
 
+  if (allScores.length >= allLeaders.length && allLeaders.length > 0) {
+    const avg = (key: keyof LeaderScoreInput) =>
+      allScores.reduce((sum, s) => sum + s[key], 0) / allScores.length
+
+    const scoreTotal =
+      Math.round((
+        avg("scoreStratAlignment") * 0.25 +
+        avg("scoreImpact") * 0.2 +
+        avg("scoreFeasibility") * 0.2 +
+        avg("scoreCompetency") * 0.15 +
+        avg("scoreRisk") * 0.1 +
+        avg("scoreTimeToImpact") * 0.1
+      ) * 100) / 100
+
+    await prisma.$transaction([
+      prisma.stage2Data.update({
+        where: { id: stage2.id },
+        data: {
+          scoreStratAlignment: avg("scoreStratAlignment"),
+          scoreImpact: avg("scoreImpact"),
+          scoreFeasibility: avg("scoreFeasibility"),
+          scoreCompetency: avg("scoreCompetency"),
+          scoreRisk: avg("scoreRisk"),
+          scoreTimeToImpact: avg("scoreTimeToImpact"),
+          scoreTotal,
+          completedAt: new Date(),
+        },
+      }),
+      prisma.project.update({
+        where: { id: projectId },
+        data: { status: scoreTotal < 2.5 ? "PARKED" : "ACTIVE" },
+      }),
+    ])
+  }
+}
+
+export async function advanceFromStage2(projectId: string) {
+  const { role } = await getUser()
+  assertLeader(role)
+
+  const stage2 = await prisma.stage2Data.findUnique({ where: { projectId } })
+  if (!stage2?.completedAt) throw new Error("Not all leaders have scored yet")
+  if ((stage2.scoreTotal ?? 0) < 3.5) throw new Error("Score does not qualify for advancement")
+
+  await prisma.project.update({ where: { id: projectId }, data: { currentStage: 3 } })
   redirect(`/projects/${projectId}`)
 }
 
@@ -139,10 +218,14 @@ type Stage3Input = {
   projectStatement: string
   definitionOfDone: string
   month1Milestone: string
+  month1Metric: string
+  month1Target: string
   month2Milestone: string
+  month2Metric: string
+  month2Target: string
   month3Milestone: string
-  scorecardMetric: string
-  scorecardWeeklyTarget: string
+  month3Metric: string
+  month3Target: string
   budgetConfirmed: boolean
   spaceConfirmed: boolean
   equipmentConfirmed: boolean
@@ -151,9 +234,18 @@ type Stage3Input = {
   contingencyPlan: string
 }
 
+export async function saveStage3Draft(projectId: string, data: Stage3Input) {
+  await getUser()
+  await prisma.stage3Data.upsert({
+    where: { projectId },
+    create: { projectId, ...data },
+    update: { ...data },
+  })
+}
+
 export async function saveStage3(projectId: string, data: Stage3Input) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) throw new Error("Unauthorized")
+  const { role } = await getUser()
+  assertLeader(role)
 
   await prisma.$transaction([
     prisma.stage3Data.upsert({
@@ -163,10 +255,7 @@ export async function saveStage3(projectId: string, data: Stage3Input) {
     }),
     prisma.project.update({
       where: { id: projectId },
-      data: {
-        currentStage: 4,
-        stage4: { create: {} },
-      },
+      data: { currentStage: 4, stage4: { create: {} } },
     }),
   ])
 
@@ -186,8 +275,7 @@ type WeeklyUpdateInput = {
 }
 
 export async function addWeeklyUpdate(projectId: string, data: WeeklyUpdateInput) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) throw new Error("Unauthorized")
+  await getUser()
 
   await prisma.weeklyUpdate.create({
     data: {
@@ -205,8 +293,8 @@ export async function addWeeklyUpdate(projectId: string, data: WeeklyUpdateInput
 }
 
 export async function completeStage4(projectId: string, completionReport: string) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) throw new Error("Unauthorized")
+  const { role } = await getUser()
+  assertLeader(role)
 
   await prisma.$transaction([
     prisma.stage4Data.update({
@@ -243,9 +331,27 @@ const NEXT_STEP_STATUS: Record<string, "ACTIVE" | "ARCHIVED" | "KILLED"> = {
   KILL: "KILLED",
 }
 
+export async function saveStage5Draft(projectId: string, data: Stage5Input) {
+  await getUser()
+  await prisma.stage5Data.upsert({
+    where: { projectId },
+    create: {
+      projectId,
+      ...(data as any),
+      nextStepDecision: data.nextStepDecision as any,
+      processDocumentation: data.processDocumentation || null,
+    },
+    update: {
+      ...(data as any),
+      nextStepDecision: data.nextStepDecision as any,
+      processDocumentation: data.processDocumentation || null,
+    },
+  })
+}
+
 export async function saveStage5(projectId: string, data: Stage5Input) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) throw new Error("Unauthorized")
+  const { role } = await getUser()
+  assertLeader(role)
 
   const finalStatus = NEXT_STEP_STATUS[data.nextStepDecision] ?? "ARCHIVED"
 

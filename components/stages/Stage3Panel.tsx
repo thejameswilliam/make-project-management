@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { saveStage3 } from "@/app/actions/projects"
+import { useRouter } from "next/navigation"
+import { saveStage3, saveStage3Draft } from "@/app/actions/projects"
 import {
   StepBar, StepNav, StepHeading, Field, TextInput, TextArea, CheckCard,
   StagePanelHeader, Section, CheckRow,
@@ -16,10 +17,14 @@ type FormData = {
   projectStatement: string
   definitionOfDone: string
   month1Milestone: string
+  month1Metric: string
+  month1Target: string
   month2Milestone: string
+  month2Metric: string
+  month2Target: string
   month3Milestone: string
-  scorecardMetric: string
-  scorecardWeeklyTarget: string
+  month3Metric: string
+  month3Target: string
   budgetConfirmed: boolean
   spaceConfirmed: boolean
   equipmentConfirmed: boolean
@@ -31,8 +36,9 @@ type FormData = {
 const EMPTY: FormData = {
   ownerName: "", ownerGetsIt: false, ownerWantsIt: false, ownerHasCapacity: false,
   projectStatement: "", definitionOfDone: "",
-  month1Milestone: "", month2Milestone: "", month3Milestone: "",
-  scorecardMetric: "", scorecardWeeklyTarget: "",
+  month1Milestone: "", month1Metric: "", month1Target: "",
+  month2Milestone: "", month2Metric: "", month2Target: "",
+  month3Milestone: "", month3Metric: "", month3Target: "",
   budgetConfirmed: false, spaceConfirmed: false, equipmentConfirmed: false, staffHoursConfirmed: false,
   topRisks: "", contingencyPlan: "",
 }
@@ -41,28 +47,33 @@ function fromDb(d: Stage3Data): FormData {
   return {
     ownerName: d.ownerName, ownerGetsIt: d.ownerGetsIt, ownerWantsIt: d.ownerWantsIt,
     ownerHasCapacity: d.ownerHasCapacity, projectStatement: d.projectStatement,
-    definitionOfDone: d.definitionOfDone, month1Milestone: d.month1Milestone,
-    month2Milestone: d.month2Milestone, month3Milestone: d.month3Milestone,
-    scorecardMetric: d.scorecardMetric, scorecardWeeklyTarget: d.scorecardWeeklyTarget,
+    definitionOfDone: d.definitionOfDone,
+    month1Milestone: d.month1Milestone, month1Metric: d.month1Metric, month1Target: d.month1Target,
+    month2Milestone: d.month2Milestone, month2Metric: d.month2Metric, month2Target: d.month2Target,
+    month3Milestone: d.month3Milestone, month3Metric: d.month3Metric, month3Target: d.month3Target,
     budgetConfirmed: d.budgetConfirmed, spaceConfirmed: d.spaceConfirmed,
     equipmentConfirmed: d.equipmentConfirmed, staffHoursConfirmed: d.staffHoursConfirmed,
     topRisks: d.topRisks, contingencyPlan: d.contingencyPlan,
   }
 }
 
-const TOTAL_STEPS = 7
+const TOTAL_STEPS = 6
 
 export function Stage3Panel({
   projectId,
   data,
   currentStage,
+  userRole,
 }: {
   projectId: string
   data: Stage3Data | null
   currentStage: number
+  userRole: string
 }) {
   const isLocked = currentStage < 3
   const isCompleted = currentStage > 3
+  const isLeader = userRole === "LEADERSHIP" || userRole === "ADMIN"
+  const router = useRouter()
   const [expanded, setExpanded] = useState(false)
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -76,11 +87,15 @@ export function Stage3Panel({
     switch (step) {
       case 1: return !!form.ownerName && form.ownerGetsIt && form.ownerWantsIt && form.ownerHasCapacity
       case 2: return !!form.projectStatement && !!form.definitionOfDone
-      case 3: return !!form.month1Milestone && !!form.month2Milestone && !!form.month3Milestone
-      case 4: return !!form.scorecardMetric && !!form.scorecardWeeklyTarget
-      case 5: return form.budgetConfirmed && form.spaceConfirmed && form.equipmentConfirmed && form.staffHoursConfirmed
-      case 6: return !!form.topRisks && !!form.contingencyPlan
-      case 7: return true
+      case 3:
+        return !!form.month1Milestone && !!form.month1Metric &&
+               !!form.month2Milestone && !!form.month2Metric &&
+               !!form.month3Milestone && !!form.month3Metric
+      case 4: return isLeader
+          ? form.budgetConfirmed && form.spaceConfirmed && form.equipmentConfirmed && form.staffHoursConfirmed
+          : true
+      case 5: return !!form.topRisks && !!form.contingencyPlan
+      case 6: return true
       default: return false
     }
   }
@@ -88,7 +103,13 @@ export function Stage3Panel({
   async function handleSubmit() {
     setLoading(true)
     try {
-      await saveStage3(projectId, form)
+      if (isLeader) {
+        await saveStage3(projectId, form)
+      } else {
+        await saveStage3Draft(projectId, form)
+        setLoading(false)
+        router.refresh()
+      }
     } catch {
       setLoading(false)
     }
@@ -127,14 +148,22 @@ export function Stage3Panel({
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.definitionOfDone}</p>
             </Section>
             <Section label="Monthly Milestones">
-              <div className="space-y-1">
-                <p className="text-sm text-gray-700"><span className="font-medium text-gray-500">Month 1:</span> {data.month1Milestone}</p>
-                <p className="text-sm text-gray-700"><span className="font-medium text-gray-500">Month 2:</span> {data.month2Milestone}</p>
-                <p className="text-sm text-gray-700"><span className="font-medium text-gray-500">Month 3:</span> {data.month3Milestone}</p>
+              <div className="space-y-3">
+                {([
+                  { label: "Month 1", milestone: data.month1Milestone, metric: data.month1Metric, target: data.month1Target },
+                  { label: "Month 2", milestone: data.month2Milestone, metric: data.month2Metric, target: data.month2Target },
+                  { label: "Month 3", milestone: data.month3Milestone, metric: data.month3Metric, target: data.month3Target },
+                ]).map(({ label, milestone, metric, target }) => (
+                  <div key={label} className="pl-3 border-l-2 border-orange-200">
+                    <p className="text-xs font-semibold text-orange-600 mb-1">{label}</p>
+                    <p className="text-sm text-gray-700">{milestone}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Metric: <span className="text-gray-700">{metric}</span>
+                      {target && <> · Target: <span className="text-gray-700">{target}</span></>}
+                    </p>
+                  </div>
+                ))}
               </div>
-            </Section>
-            <Section label="Scorecard Metric">
-              <p className="text-sm text-gray-700">{data.scorecardMetric} — Weekly target: {data.scorecardWeeklyTarget}</p>
             </Section>
             <Section label="Top Risks">
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.topRisks}</p>
@@ -180,43 +209,61 @@ export function Stage3Panel({
         )}
 
         {step === 3 && (
-          <div className="space-y-4">
-            <StepHeading title="Monthly Milestones" subtitle="What will be true at the end of each month?" />
-            <Field label="Month 1">
-              <TextArea value={form.month1Milestone} onChange={(v) => set("month1Milestone", v)} placeholder="What is true by the end of Month 1?" rows={2} autoFocus />
-            </Field>
-            <Field label="Month 2">
-              <TextArea value={form.month2Milestone} onChange={(v) => set("month2Milestone", v)} placeholder="What is true by the end of Month 2?" rows={2} />
-            </Field>
-            <Field label="Month 3">
-              <TextArea value={form.month3Milestone} onChange={(v) => set("month3Milestone", v)} placeholder="What is true by the end of Month 3?" rows={2} />
-            </Field>
+          <div className="space-y-5">
+            <StepHeading title="Monthly Milestones & Metrics" subtitle="For each month, define the milestone and how you'll measure progress toward it." />
+            {([
+              { num: 1, milestone: "month1Milestone", metric: "month1Metric", target: "month1Target" },
+              { num: 2, milestone: "month2Milestone", metric: "month2Metric", target: "month2Target" },
+              { num: 3, milestone: "month3Milestone", metric: "month3Metric", target: "month3Target" },
+            ] as const).map(({ num, milestone, metric, target }, i) => (
+              <div key={num} className="rounded-xl border border-gray-200 p-4 space-y-3">
+                <p className="text-sm font-semibold text-orange-600">Month {num}</p>
+                <Field label="Milestone — what will be true by end of this month?">
+                  <TextArea
+                    value={form[milestone]}
+                    onChange={(v) => set(milestone, v)}
+                    placeholder={`What is achieved by the end of month ${num}?`}
+                    rows={2}
+                    autoFocus={i === 0}
+                  />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Tracking Metric">
+                    <TextInput
+                      value={form[metric]}
+                      onChange={(v) => set(metric, v)}
+                      placeholder="e.g. Orientations completed"
+                    />
+                  </Field>
+                  <Field label="Weekly Target">
+                    <TextInput
+                      value={form[target]}
+                      onChange={(v) => set(target, v)}
+                      placeholder="e.g. 4 per week"
+                    />
+                  </Field>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
         {step === 4 && (
           <div className="space-y-4">
-            <StepHeading title="Scorecard" subtitle="Identify the leading indicator that will show weekly progress." />
-            <Field label="Scorecard Metric">
-              <TextInput value={form.scorecardMetric} onChange={(v) => set("scorecardMetric", v)} placeholder="e.g. Number of completed 3D printer orientations" autoFocus />
-            </Field>
-            <Field label="Weekly Target / Goal">
-              <TextInput value={form.scorecardWeeklyTarget} onChange={(v) => set("scorecardWeeklyTarget", v)} placeholder="e.g. 3 orientations per week" />
-            </Field>
+            <StepHeading title="Resources Confirmed" subtitle="All four must be confirmed by leadership before execution begins." />
+            {!isLeader && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                These confirmations require a Leadership or Admin role.
+              </p>
+            )}
+            <CheckCard checked={form.budgetConfirmed} onChange={(v) => set("budgetConfirmed", v)} disabled={!isLeader} title="Budget Confirmed" description="Funds are reserved or reallocated in the operating budget (board approval obtained if required)." />
+            <CheckCard checked={form.spaceConfirmed} onChange={(v) => set("spaceConfirmed", v)} disabled={!isLeader} title="Space Confirmed" description="Any facility changes or reservations are made." />
+            <CheckCard checked={form.equipmentConfirmed} onChange={(v) => set("equipmentConfirmed", v)} disabled={!isLeader} title="Equipment Confirmed" description="Equipment is purchased, on order, or donation confirmed in writing." />
+            <CheckCard checked={form.staffHoursConfirmed} onChange={(v) => set("staffHoursConfirmed", v)} disabled={!isLeader} title="Staff Hours Confirmed" description="Any adjusted workload is agreed to by affected staff members." />
           </div>
         )}
 
         {step === 5 && (
-          <div className="space-y-4">
-            <StepHeading title="Resources Confirmed" subtitle="All four must be confirmed before execution begins." />
-            <CheckCard checked={form.budgetConfirmed} onChange={(v) => set("budgetConfirmed", v)} title="Budget Confirmed" description="Funds are reserved or reallocated in the operating budget (board approval obtained if required)." />
-            <CheckCard checked={form.spaceConfirmed} onChange={(v) => set("spaceConfirmed", v)} title="Space Confirmed" description="Any facility changes or reservations are made." />
-            <CheckCard checked={form.equipmentConfirmed} onChange={(v) => set("equipmentConfirmed", v)} title="Equipment Confirmed" description="Equipment is purchased, on order, or donation confirmed in writing." />
-            <CheckCard checked={form.staffHoursConfirmed} onChange={(v) => set("staffHoursConfirmed", v)} title="Staff Hours Confirmed" description="Any adjusted workload is agreed to by affected staff members." />
-          </div>
-        )}
-
-        {step === 6 && (
           <div className="space-y-4">
             <StepHeading title="Risk and Contingency" subtitle="Write 'if this, then that' statements — not a full risk plan." />
             <Field label="Top 1–2 Risks">
@@ -228,27 +275,43 @@ export function Stage3Panel({
           </div>
         )}
 
-        {step === 7 && (
+        {step === 6 && (
           <div className="space-y-4">
             <StepHeading title="Review and Confirm" />
             <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3 text-sm">
               <ReviewLine label="Owner" value={`${form.ownerName} (GWC ✓)`} />
               <ReviewLine label="Project Statement" value={form.projectStatement} />
-              <ReviewLine label="Scorecard Metric" value={`${form.scorecardMetric} — target: ${form.scorecardWeeklyTarget}`} />
-              <ReviewLine label="Month 1" value={form.month1Milestone} />
-              <ReviewLine label="Month 2" value={form.month2Milestone} />
-              <ReviewLine label="Month 3" value={form.month3Milestone} />
+              <div>
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">Monthly Milestones</p>
+                <div className="space-y-2">
+                  {([
+                    { label: "Month 1", milestone: form.month1Milestone, metric: form.month1Metric, target: form.month1Target },
+                    { label: "Month 2", milestone: form.month2Milestone, metric: form.month2Metric, target: form.month2Target },
+                    { label: "Month 3", milestone: form.month3Milestone, metric: form.month3Metric, target: form.month3Target },
+                  ]).map(({ label, milestone, metric, target }) => (
+                    <div key={label} className="pl-3 border-l-2 border-orange-200">
+                      <p className="text-xs font-semibold text-orange-600">{label}</p>
+                      <p className="text-gray-800 mt-0.5">{milestone}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {metric}{target ? ` — weekly target: ${target}` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-              Completing Stage 3 will advance this project into execution (Stage 4).
-            </p>
+            {isLeader && (
+              <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                Completing Stage 3 will advance this project into execution (Stage 4).
+              </p>
+            )}
           </div>
         )}
 
         <StepNav
           step={step} total={TOTAL_STEPS} canNext={canAdvance()} loading={loading}
           onBack={() => setStep((s) => s - 1)} onNext={() => setStep((s) => s + 1)}
-          onSubmit={handleSubmit} submitLabel="Complete & Begin Execution →"
+          onSubmit={handleSubmit} submitLabel={isLeader ? "Complete & Begin Execution →" : "Save Progress"}
         />
       </div>
     </div>

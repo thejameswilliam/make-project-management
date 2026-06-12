@@ -1,7 +1,13 @@
 import Link from "next/link"
 import { NewProjectForm } from "@/components/NewProjectForm"
+import { prisma } from "@/lib/prisma"
 
-export default function NewProjectPage() {
+export default async function NewProjectPage() {
+  const [coreValues, oneYearGoals] = await Promise.all([
+    prisma.coreValue.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.oneYearGoal.findMany({ orderBy: { createdAt: "asc" } }),
+  ])
+
   return (
     <div>
       <div className="mb-6">
@@ -11,7 +17,7 @@ export default function NewProjectPage() {
         <h1 className="text-2xl font-bold text-gray-900 mt-3">New Project</h1>
         <p className="text-sm text-gray-500 mt-0.5">Stage 1: Pitch and Propose</p>
       </div>
-      <NewProjectForm />
+      <NewProjectForm coreValues={coreValues} oneYearGoals={oneYearGoals} />
     </div>
   )
 }
