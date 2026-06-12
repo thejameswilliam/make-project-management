@@ -66,39 +66,124 @@ model Stage1Data {
   updatedAt              DateTime  @updatedAt
 }
 
-// Stage 2–5 models are scaffolded here; fields are populated in Phase 2
 model Stage2Data {
-  id          String    @id @default(cuid())
-  projectId   String    @unique
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                  String        @id @default(cuid())
+  projectId           String        @unique
+  project             Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  description         String        @db.Text
+  expectedOutcome     String        @db.Text
+  targetAudience      String        @db.Text
+  oneTimeCost         String
+  ongoingCost         String
+  revenueOrSavings    String
+  fundingSource       FundingSource
+  staffHoursLaunch    String
+  staffHoursSustain   String
+  noStaffDisruption   Boolean       @default(false)
+  newStaffingNote     String?       @db.Text
+  spaceRequired       String
+  equipmentRequired   String
+  noResourceConflict  Boolean       @default(false)
+  estimatedLaunchDate String
+  isWithin90Days      Boolean       @default(false)
+  quarterlyMilestones String?       @db.Text
+  scoreStratAlignment Float
+  scoreImpact         Float
+  scoreFeasibility    Float
+  scoreCompetency     Float
+  scoreRisk           Float
+  scoreTimeToImpact   Float
+  scoreTotal          Float
+  completedAt         DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+
+enum FundingSource {
+  EXISTING_BUDGET
+  REALLOCATION
+  GRANT
+  FUNDRAISING
+  DONOR_DIRECTED
+  NOT_IDENTIFIED
 }
 
 model Stage3Data {
-  id          String    @id @default(cuid())
-  projectId   String    @unique
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  projectId             String    @unique
+  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  ownerName             String
+  ownerGetsIt           Boolean   @default(false)
+  ownerWantsIt          Boolean   @default(false)
+  ownerHasCapacity      Boolean   @default(false)
+  projectStatement      String    @db.Text
+  definitionOfDone      String    @db.Text
+  month1Milestone       String    @db.Text
+  month2Milestone       String    @db.Text
+  month3Milestone       String    @db.Text
+  scorecardMetric       String
+  scorecardWeeklyTarget String
+  budgetConfirmed       Boolean   @default(false)
+  spaceConfirmed        Boolean   @default(false)
+  equipmentConfirmed    Boolean   @default(false)
+  staffHoursConfirmed   Boolean   @default(false)
+  topRisks              String    @db.Text
+  contingencyPlan       String    @db.Text
+  completedAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 }
 
 model Stage4Data {
-  id          String    @id @default(cuid())
-  projectId   String    @unique
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id               String         @id @default(cuid())
+  projectId        String         @unique
+  project          Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  weeklyUpdates    WeeklyUpdate[]
+  completionReport String?        @db.Text
+  completedAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model WeeklyUpdate {
+  id          String      @id @default(cuid())
+  stage4Id    String
+  stage4      Stage4Data  @relation(fields: [stage4Id], references: [id], onDelete: Cascade)
+  weekOf      String
+  status      TrackStatus
+  notes       String?     @db.Text
+  todoItem    String?
+  metricValue String?
+  issues      String?     @db.Text
+  createdAt   DateTime    @default(now())
+}
+
+enum TrackStatus {
+  ON_TRACK
+  OFF_TRACK
 }
 
 model Stage5Data {
-  id          String    @id @default(cuid())
-  projectId   String    @unique
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                     String    @id @default(cuid())
+  projectId              String    @unique
+  project                Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  definitionOfDoneReview String    @db.Text
+  scorecardSummary       String    @db.Text
+  financialImpact        String    @db.Text
+  missionImpact          String    @db.Text
+  operationalImpact      String    @db.Text
+  lessonsLearned         String    @db.Text
+  nextStepDecision       NextStep
+  processDocumentation   String?   @db.Text
+  completedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+enum NextStep {
+  RETIRE
+  SUSTAIN
+  EXPAND
+  CARRY
+  KILL
 }
