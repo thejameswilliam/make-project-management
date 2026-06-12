@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String?
+  role      UserRole  @default(STAFF)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  projects  Project[]
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+  MEMBER
+}
+
+model Project {
+  id           String        @id @default(cuid())
+  name         String
+  currentStage Int           @default(1)
+  status       ProjectStatus @default(ACTIVE)
+  proposedById String
+  proposedBy   User          @relation(fields: [proposedById], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  stage1       Stage1Data?
+  stage2       Stage2Data?
+  stage3       Stage3Data?
+  stage4       Stage4Data?
+  stage5       Stage5Data?
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PARKED
+  KILLED
+  ARCHIVED
+}
+
+model Stage1Data {
+  id                     String    @id @default(cuid())
+  projectId              String    @unique
+  project                Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  problemStatement       String    @db.Text
+  missionAlignment       Boolean   @default(false)
+  nicheFit               Boolean   @default(false)
+  tenYearAlignment       Boolean   @default(false)
+  coreValueName          String
+  noCoreValueViolated    Boolean   @default(false)
+  oneYearPlanGoal        String?   @db.Text
+  isStrategicException   Boolean   @default(false)
+  strategicExceptionNote String?   @db.Text
+  noDistractionRisk      Boolean   @default(false)
+  completedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+// Stage 2–5 models are scaffolded here; fields are populated in Phase 2
+model Stage2Data {
+  id          String    @id @default(cuid())
+  projectId   String    @unique
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Stage3Data {
+  id          String    @id @default(cuid())
+  projectId   String    @unique
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Stage4Data {
+  id          String    @id @default(cuid())
+  projectId   String    @unique
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Stage5Data {
+  id          String    @id @default(cuid())
+  projectId   String    @unique
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}

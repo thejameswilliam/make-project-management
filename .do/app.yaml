@@ -1,0 +1,35 @@
+name: pm-makesantafe
+region: nyc
+
+services:
+  - name: web
+    source_dir: /
+    github:
+      repo: makesantafe/pm.makesantafe.org
+      branch: main
+      deploy_on_push: true
+    build_command: npm ci && npm run build
+    run_command: npm start
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: NEXTAUTH_SECRET
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: NEXTAUTH_URL
+        scope: RUN_AND_BUILD_TIME
+        value: https://pm.makesantafe.org
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
+
+databases:
+  - name: pm-db
+    engine: PG
+    version: "15"
+    size: db-s-dev-database
+    num_nodes: 1
