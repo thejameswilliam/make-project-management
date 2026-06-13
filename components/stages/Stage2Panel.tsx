@@ -445,7 +445,9 @@ export function Stage2Panel({
                     <div className="flex items-center justify-between px-4 py-3 bg-green-50 border border-green-200 rounded-lg mb-2">
                       <div>
                         <p className="text-sm font-semibold text-green-700">Your score submitted</p>
-                        <p className="text-xs text-green-600 mt-0.5">Weighted: {calcWeighted(scoreFromRecord(myScore)).toFixed(2)}</p>
+                        {allScored && (
+                          <p className="text-xs text-green-600 mt-0.5">Weighted: {calcWeighted(scoreFromRecord(myScore)).toFixed(2)}</p>
+                        )}
                       </div>
                       <button onClick={() => setShowScoreForm(true)} className="text-xs text-orange-600 hover:underline">Revise</button>
                     </div>
@@ -472,7 +474,9 @@ export function Stage2Panel({
                         <span>{displayName}</span>
                       </div>
                       {s ? (
-                        <span className="text-xs font-semibold">{calcWeighted(scoreFromRecord(s)).toFixed(2)}</span>
+                        allScored
+                          ? <span className="text-xs font-semibold">{calcWeighted(scoreFromRecord(s)).toFixed(2)}</span>
+                          : <span className="text-xs text-green-600 font-medium">Scored</span>
                       ) : (
                         <span className="text-xs text-gray-400">Pending</span>
                       )}
