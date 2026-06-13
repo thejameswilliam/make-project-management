@@ -31,6 +31,7 @@ export default async function DashboardPage() {
             scores: isLeader ? { where: { userId }, select: { id: true } } : false,
           },
         },
+        stage3: { select: { ownerName: true } },
       },
       orderBy: { updatedAt: "desc" },
     }),
@@ -112,7 +113,9 @@ export default async function DashboardPage() {
                           {project.name}
                         </p>
                         <p className="text-xs text-gray-400 mb-3">
-                          {project.proposedBy.name ?? project.proposedBy.email}
+                          {project.stage3?.ownerName
+                            ? `Owner: ${project.stage3.ownerName}`
+                            : (project.proposedBy.name ?? project.proposedBy.email)}
                         </p>
                         {isLeader &&
                           project.currentStage === 2 &&

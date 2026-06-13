@@ -57,7 +57,7 @@ const FUNDING_OPTIONS = [
 ]
 
 const SCORE_CRITERIA = [
-  { key: "scoreStratAlignment" as const, label: "Strategic Alignment with V/TO 1-Year Plan", weight: 0.25 },
+  { key: "scoreStratAlignment" as const, label: "Strategic Alignment with 1-Year Plan (and the Budget)", weight: 0.25 },
   { key: "scoreImpact" as const, label: "Revenue, Membership, or Mission Impact", weight: 0.20 },
   { key: "scoreFeasibility" as const, label: "Resource Feasibility (people, money, space)", weight: 0.20 },
   { key: "scoreCompetency" as const, label: "Core Competency Fit (within Make's niche)", weight: 0.15 },
