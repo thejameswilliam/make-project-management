@@ -33,8 +33,26 @@ type Stage1Input = {
   noDistractionRisk: boolean
 }
 
-export async function createProject(data: Stage1Input) {
-  const { id: userId } = await getUser()
+const PROJECT_LIMIT = 3
+
+async function countActiveProjects(userId: string): Promise<number> {
+  return prisma.project.count({
+    where: {
+      proposedById: userId,
+      status: { in: ["ACTIVE", "PARKED"] },
+    },
+  })
+}
+
+export async function createProject(data: Stage1Input): Promise<{ error: string } | void> {
+  const { id: userId, role } = await getUser()
+
+  if (role !== "ADMIN") {
+    const active = await countActiveProjects(userId)
+    if (active >= PROJECT_LIMIT) {
+      return { error: `You've reached the ${PROJECT_LIMIT}-project limit. A project must be retired before you can submit a new one.` }
+    }
+  }
 
   const project = await prisma.project.create({
     data: {

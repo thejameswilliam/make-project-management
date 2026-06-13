@@ -114,7 +114,11 @@ export function NewProjectForm({
       : form.oneYearPlanGoal
 
     try {
-      await createProject({ ...form, coreValueName: resolvedCoreValueName, oneYearPlanGoal: resolvedOneYearPlanGoal })
+      const result = await createProject({ ...form, coreValueName: resolvedCoreValueName, oneYearPlanGoal: resolvedOneYearPlanGoal })
+      if (result?.error) {
+        setError(result.error)
+        setLoading(false)
+      }
     } catch {
       setError("Something went wrong. Please try again.")
       setLoading(false)

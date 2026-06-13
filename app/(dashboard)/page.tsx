@@ -4,13 +4,29 @@ import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { STAGE_NAMES, STATUS_LABELS, STATUS_COLORS } from "@/lib/utils"
 
+const PROJECT_LIMIT = 3
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
+  const userId = (session!.user as { id: string }).id
+  const role = (session!.user as { role: string }).role
 
-  const projects = await prisma.project.findMany({
-    include: { proposedBy: { select: { name: true, email: true } } },
-    orderBy: { updatedAt: "desc" },
-  })
+  const [projects, activeCount] = await Promise.all([
+    prisma.project.findMany({
+      include: { proposedBy: { select: { name: true, email: true } } },
+      orderBy: { updatedAt: "desc" },
+    }),
+    role !== "ADMIN"
+      ? prisma.project.count({
+          where: {
+            proposedById: userId,
+            status: { in: ["ACTIVE", "PARKED"] },
+          },
+        })
+      : Promise.resolve(0),
+  ])
+
+  const atLimit = role !== "ADMIN" && activeCount >= PROJECT_LIMIT
 
   return (
     <div>
@@ -21,12 +37,21 @@ export default async function DashboardPage() {
             {projects.length} {projects.length === 1 ? "project" : "projects"}
           </p>
         </div>
-        <Link
-          href="/projects/new"
-          className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors"
-        >
-          + New Project
-        </Link>
+        {atLimit ? (
+          <span
+            title={`You have ${PROJECT_LIMIT} active projects — retire one to add another.`}
+            className="bg-gray-100 text-gray-400 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed select-none"
+          >
+            + New Project
+          </span>
+        ) : (
+          <Link
+            href="/projects/new"
+            className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors"
+          >
+            + New Project
+          </Link>
+        )}
       </div>
 
       {projects.length === 0 ? (
