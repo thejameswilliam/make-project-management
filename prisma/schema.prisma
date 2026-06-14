@@ -235,6 +235,7 @@ model ThreeYearPillar {
   plan        StrategicPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   title       String
   description String        @db.Text @default("")
+  goal        String        @db.Text @default("")
   order       Int
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt

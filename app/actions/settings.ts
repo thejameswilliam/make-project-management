@@ -121,6 +121,16 @@ export async function updatePillarDescription(pillarId: string, description: str
   revalidatePath("/strategy")
 }
 
+export async function updatePillarGoal(pillarId: string, goal: string) {
+  await requireAdmin()
+  await prisma.threeYearPillar.update({
+    where: { id: pillarId },
+    data: { goal: goal.trim() },
+  })
+  revalidatePath("/settings")
+  revalidatePath("/strategy")
+}
+
 export async function updateYearPlanTitle(planId: string, title: string) {
   await requireAdmin()
   await prisma.oneYearPlan.update({

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   addCoreValue, deleteCoreValue,
-  updateMission, updateTenYearTarget, updatePillarTitle, updatePillarDescription, updateYearPlanTitle,
+  updateMission, updateTenYearTarget, updatePillarTitle, updatePillarDescription, updatePillarGoal, updateYearPlanTitle,
   addGoal, updateGoal, deleteGoal,
   updateUserRole, createUser,
 } from "@/app/actions/settings"
@@ -14,7 +14,7 @@ type UserRecord = { id: string; name: string | null; email: string; role: string
 
 type Goal = { id: string; title: string; order: number }
 type YearPlan = { id: string; title: string; goals: Goal[] }
-type Pillar = { id: string; title: string; description: string; order: number; yearPlan: YearPlan | null }
+type Pillar = { id: string; title: string; description: string; goal: string; order: number; yearPlan: YearPlan | null }
 type Plan = { id: string; mission: string; tenYearTarget: string; pillars: Pillar[] }
 
 const ROLE_OPTIONS = [
@@ -62,8 +62,12 @@ export function SettingsManager({
   const [pillarDescDrafts, setPillarDescDrafts] = useState<Record<string, string>>(
     Object.fromEntries(strategicPlan.pillars.map((p) => [p.id, p.description]))
   )
+  const [pillarGoalDrafts, setPillarGoalDrafts] = useState<Record<string, string>>(
+    Object.fromEntries(strategicPlan.pillars.map((p) => [p.id, p.goal]))
+  )
   const [savingPillarId, setSavingPillarId] = useState<string | null>(null)
   const [savingPillarDescId, setSavingPillarDescId] = useState<string | null>(null)
+  const [savingPillarGoalId, setSavingPillarGoalId] = useState<string | null>(null)
 
   const [planDrafts, setPlanDrafts] = useState<Record<string, string>>(
     Object.fromEntries(
@@ -133,6 +137,13 @@ export function SettingsManager({
     setSavingPillarDescId(pillarId)
     await updatePillarDescription(pillarId, pillarDescDrafts[pillarId] ?? "")
     setSavingPillarDescId(null)
+    router.refresh()
+  }
+
+  async function handleSavePillarGoal(pillarId: string) {
+    setSavingPillarGoalId(pillarId)
+    await updatePillarGoal(pillarId, pillarGoalDrafts[pillarId] ?? "")
+    setSavingPillarGoalId(null)
     router.refresh()
   }
 
@@ -443,6 +454,7 @@ export function SettingsManager({
                     </button>
                   </div>
                   <div className="mt-2">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
                     <textarea
                       value={pillarDescDrafts[pillar.id] ?? ""}
                       onChange={(e) =>
@@ -461,6 +473,28 @@ export function SettingsManager({
                       className="mt-1 px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-700 disabled:opacity-40 transition-colors"
                     >
                       {savingPillarDescId === pillar.id ? "Saving…" : "Save"}
+                    </button>
+                  </div>
+                  <div className="mt-2">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">3-Year Goal</label>
+                    <textarea
+                      value={pillarGoalDrafts[pillar.id] ?? ""}
+                      onChange={(e) =>
+                        setPillarGoalDrafts((d) => ({ ...d, [pillar.id]: e.target.value }))
+                      }
+                      placeholder="What does success look like in 3 years for this pillar?"
+                      rows={2}
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+                    />
+                    <button
+                      onClick={() => handleSavePillarGoal(pillar.id)}
+                      disabled={
+                        savingPillarGoalId === pillar.id ||
+                        (pillarGoalDrafts[pillar.id] ?? "") === pillar.goal
+                      }
+                      className="mt-1 px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-700 disabled:opacity-40 transition-colors"
+                    >
+                      {savingPillarGoalId === pillar.id ? "Saving…" : "Save"}
                     </button>
                   </div>
                 </div>

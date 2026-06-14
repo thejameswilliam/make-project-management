@@ -140,6 +140,12 @@ export default async function StrategyPage() {
                         {pillar.description}
                       </p>
                     )}
+                    {pillar.goal && (
+                      <p className="mt-2 text-xs text-gray-600 bg-white/60 rounded-lg px-2.5 py-1.5 leading-snug">
+                        <span className="font-semibold uppercase tracking-wide text-[10px] text-gray-400">3-Year Goal · </span>
+                        {pillar.goal}
+                      </p>
+                    )}
                   </div>
 
                   {/* 1-Year Plan */}
