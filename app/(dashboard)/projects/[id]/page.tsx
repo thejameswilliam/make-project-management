@@ -22,7 +22,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
       where: { id: params.id },
       include: {
         proposedBy: { select: { name: true, email: true } },
-        stage1: true,
+        stage1: { include: { goal: { select: { title: true } } } },
         stage2: {
           include: {
             scores: {
@@ -98,7 +98,9 @@ export default async function ProjectPage({ params }: { params: { id: string } }
       </div>
 
       {/* Stage pipeline */}
-      {project.stage1 && <Stage1Panel data={project.stage1} />}
+      {project.stage1 && (
+        <Stage1Panel data={project.stage1} goalTitle={project.stage1.goal?.title} />
+      )}
 
       <Stage2Panel
         projectId={project.id}

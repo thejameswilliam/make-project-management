@@ -5,7 +5,8 @@ import { createProject } from "@/app/actions/projects"
 import { cn } from "@/lib/utils"
 
 type CoreValue = { id: string; name: string }
-type OneYearGoal = { id: string; description: string }
+type Goal = { id: string; title: string; order: number }
+type YearPlan = { id: string; title: string; goals: Goal[] }
 
 type FormData = {
   name: string
@@ -15,7 +16,7 @@ type FormData = {
   tenYearAlignment: boolean
   coreValueName: string
   noCoreValueViolated: boolean
-  oneYearPlanGoal: string
+  goalId: string | null
   isStrategicException: boolean
   strategicExceptionNote: string
   noDistractionRisk: boolean
@@ -32,10 +33,14 @@ const STEPS = [
 
 export function NewProjectForm({
   coreValues = [],
-  oneYearGoals = [],
+  yearPlans = [],
+  mission = "",
+  tenYearTarget = "",
 }: {
   coreValues?: CoreValue[]
-  oneYearGoals?: OneYearGoal[]
+  yearPlans?: YearPlan[]
+  mission?: string
+  tenYearTarget?: string
 }) {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -48,16 +53,13 @@ export function NewProjectForm({
     tenYearAlignment: false,
     coreValueName: "",
     noCoreValueViolated: false,
-    oneYearPlanGoal: "",
+    goalId: null,
     isStrategicException: false,
     strategicExceptionNote: "",
     noDistractionRisk: false,
   })
 
-  // multi-select state for checkbox-based core values
   const [selectedValues, setSelectedValues] = useState<string[]>([])
-  // multi-select state for checkbox-based goals
-  const [selectedGoals, setSelectedGoals] = useState<string[]>([])
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -69,11 +71,7 @@ export function NewProjectForm({
     )
   }
 
-  function toggleGoal(desc: string) {
-    setSelectedGoals((prev) =>
-      prev.includes(desc) ? prev.filter((g) => g !== desc) : [...prev, desc]
-    )
-  }
+  const allGoals = yearPlans.flatMap((p) => p.goals.map((g) => ({ ...g, planTitle: p.title })))
 
   function canAdvance(): boolean {
     switch (step) {
@@ -91,8 +89,8 @@ export function NewProjectForm({
       }
       case 5:
         if (form.isStrategicException) return form.strategicExceptionNote.trim().length > 0
-        if (oneYearGoals.length > 0) return selectedGoals.length > 0
-        return form.oneYearPlanGoal.trim().length > 0
+        if (allGoals.length > 0) return form.goalId !== null
+        return false
       case 6:
         return form.noDistractionRisk
       default:
@@ -109,12 +107,8 @@ export function NewProjectForm({
       ? selectedValues.join(", ")
       : form.coreValueName
 
-    const resolvedOneYearPlanGoal = !form.isStrategicException && oneYearGoals.length > 0
-      ? selectedGoals.join("\n")
-      : form.oneYearPlanGoal
-
     try {
-      const result = await createProject({ ...form, coreValueName: resolvedCoreValueName, oneYearPlanGoal: resolvedOneYearPlanGoal })
+      const result = await createProject({ ...form, coreValueName: resolvedCoreValueName })
       if (result?.error) {
         setError(result.error)
         setLoading(false)
@@ -215,44 +209,56 @@ export function NewProjectForm({
                 {
                   key: "missionAlignment" as const,
                   label: "Mission Alignment",
-                  description:
-                    "Does this initiative serve Make's purpose — democratizing access to making and creative tools in Santa Fe?",
+                  description: null,
+                  target: mission,
                 },
                 {
                   key: "nicheFit" as const,
                   label: "Niche Fit",
                   description:
-                    "Does this fall within what Make does better than any other Santa Fe organization — community-based hands-on making, education, and shared tools?",
+                    "Does this fall within what Make does better than any other Santa Fe organization? is it something that we do, that nobody else does?",
                 },
                 {
                   key: "tenYearAlignment" as const,
                   label: "10-Year Target Alignment",
                   description:
                     "Does this move Make toward its long-term vision, not just solve a short-term problem?",
+                  target: tenYearTarget,
                 },
               ] as const
-            ).map(({ key, label, description }) => (
-              <label
-                key={key}
-                className={cn(
-                  "flex gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors",
-                  form[key]
-                    ? "border-orange-500 bg-orange-50"
-                    : "border-gray-200 bg-white hover:border-gray-300"
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={form[key]}
-                  onChange={(e) => set(key, e.target.checked)}
-                  className="mt-0.5 accent-orange-600 shrink-0"
-                />
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">{label}</p>
-                  <p className="text-gray-500 text-sm mt-0.5">{description}</p>
-                </div>
-              </label>
-            ))}
+            ).map(({ key, label, description, ...rest }) => {
+              const target = "target" in rest ? (rest as { target?: string }).target : undefined
+              return (
+                <label
+                  key={key}
+                  className={cn(
+                    "flex gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors",
+                    form[key]
+                      ? "border-orange-500 bg-orange-50"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={form[key]}
+                    onChange={(e) => set(key, e.target.checked)}
+                    className="mt-0.5 accent-orange-600 shrink-0"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900 text-sm">{label}</p>
+                    <p className="text-gray-500 text-sm mt-0.5">{description}</p>
+                    {target && (
+                      <p className="mt-2 text-xs text-gray-700 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 leading-snug">
+                        <span className="font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
+                          {label} ·{" "}
+                        </span>
+                        {target}
+                      </p>
+                    )}
+                  </div>
+                </label>
+              )
+            })}
           </div>
           {(!form.missionAlignment || !form.nicheFit || !form.tenYearAlignment) && (
             <p className="text-amber-700 text-sm bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -391,43 +397,32 @@ export function NewProjectForm({
           </div>
 
           {!form.isStrategicException ? (
-            oneYearGoals.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-700">Which goal(s) does this support?</p>
-                {oneYearGoals.map((goal) => (
-                  <label
-                    key={goal.id}
-                    className={cn(
-                      "flex gap-3 p-3.5 rounded-lg border-2 cursor-pointer transition-colors",
-                      selectedGoals.includes(goal.description)
-                        ? "border-orange-500 bg-orange-50"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedGoals.includes(goal.description)}
-                      onChange={() => toggleGoal(goal.description)}
-                      className="mt-0.5 accent-orange-600 shrink-0"
-                    />
-                    <span className="text-sm text-gray-800">{goal.description}</span>
-                  </label>
-                ))}
-              </div>
-            ) : (
+            allGoals.length > 0 ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Which 1-Year Plan goal does this support?
+                  Which goal does this support?
                 </label>
-                <textarea
-                  value={form.oneYearPlanGoal}
-                  onChange={(e) => set("oneYearPlanGoal", e.target.value)}
-                  rows={3}
-                  placeholder="Point to at least one current 1-Year Plan goal…"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
-                  autoFocus
-                />
+                <select
+                  value={form.goalId ?? ""}
+                  onChange={(e) => set("goalId", e.target.value || null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="">Select a goal…</option>
+                  {yearPlans.map((plan) => (
+                    <optgroup key={plan.id} label={plan.title}>
+                      {plan.goals.map((goal) => (
+                        <option key={goal.id} value={goal.id}>
+                          {goal.order}. {goal.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
               </div>
+            ) : (
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                No goals have been set up yet. Ask an admin to add goals in Settings, or select "Strategic exception" above.
+              </p>
             )
           ) : (
             <div>
@@ -496,9 +491,7 @@ export function NewProjectForm({
               value={
                 form.isStrategicException
                   ? form.strategicExceptionNote
-                  : oneYearGoals.length > 0
-                  ? selectedGoals.join(", ")
-                  : form.oneYearPlanGoal
+                  : allGoals.find((g) => g.id === form.goalId)?.title ?? "—"
               }
             />
           </div>

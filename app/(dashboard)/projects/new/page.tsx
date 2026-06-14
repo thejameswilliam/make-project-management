@@ -11,9 +11,13 @@ export default async function NewProjectPage() {
   const userId = (session!.user as { id: string }).id
   const role = (session!.user as { role: string }).role
 
-  const [coreValues, oneYearGoals, activeCount] = await Promise.all([
+  const [coreValues, yearPlans, strategicPlan, activeCount] = await Promise.all([
     prisma.coreValue.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.oneYearGoal.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.oneYearPlan.findMany({
+      orderBy: { pillar: { order: "asc" } },
+      include: { goals: { orderBy: { order: "asc" } } },
+    }),
+    prisma.strategicPlan.findFirst({ select: { mission: true, tenYearTarget: true } }),
     role !== "ADMIN"
       ? prisma.project.count({
           where: {
@@ -46,7 +50,12 @@ export default async function NewProjectPage() {
           </Link>
         </div>
       ) : (
-        <NewProjectForm coreValues={coreValues} oneYearGoals={oneYearGoals} />
+        <NewProjectForm
+          coreValues={coreValues}
+          yearPlans={yearPlans}
+          mission={strategicPlan?.mission ?? ""}
+          tenYearTarget={strategicPlan?.tenYearTarget ?? ""}
+        />
       )}
     </div>
   )

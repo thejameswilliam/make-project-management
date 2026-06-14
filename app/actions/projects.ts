@@ -27,7 +27,7 @@ type Stage1Input = {
   tenYearAlignment: boolean
   coreValueName: string
   noCoreValueViolated: boolean
-  oneYearPlanGoal: string
+  goalId: string | null
   isStrategicException: boolean
   strategicExceptionNote: string
   noDistractionRisk: boolean
@@ -67,7 +67,7 @@ export async function createProject(data: Stage1Input): Promise<{ error: string 
           tenYearAlignment: data.tenYearAlignment,
           coreValueName: data.coreValueName,
           noCoreValueViolated: data.noCoreValueViolated,
-          oneYearPlanGoal: data.oneYearPlanGoal || null,
+          goalId: data.goalId || null,
           isStrategicException: data.isStrategicException,
           strategicExceptionNote: data.strategicExceptionNote || null,
           noDistractionRisk: data.noDistractionRisk,

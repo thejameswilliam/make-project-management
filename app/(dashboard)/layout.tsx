@@ -20,6 +20,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <span className="font-semibold text-gray-900 text-sm">Make Santa Fe / PM</span>
           </Link>
           <div className="flex items-center gap-4">
+            <Link href="/strategy" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
+              Strategy
+            </Link>
             <Link href="/account" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
               {session.user?.name ?? session.user?.email}
             </Link>

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { StagePanelHeader, Section, CheckRow } from "./shared"
 import type { Stage1Data } from "@prisma/client"
 
-export function Stage1Panel({ data }: { data: Stage1Data }) {
+export function Stage1Panel({ data, goalTitle }: { data: Stage1Data; goalTitle?: string }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -45,7 +45,9 @@ export function Stage1Panel({ data }: { data: Stage1Data }) {
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.strategicExceptionNote}</p>
               </div>
             ) : (
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{data.oneYearPlanGoal}</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                {goalTitle ?? data.oneYearPlanGoal}
+              </p>
             )}
           </Section>
           <Section label="Distraction Risk">

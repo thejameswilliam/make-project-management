@@ -49,22 +49,24 @@ enum ProjectStatus {
 }
 
 model Stage1Data {
-  id                     String    @id @default(cuid())
-  projectId              String    @unique
-  project                Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  problemStatement       String    @db.Text
-  missionAlignment       Boolean   @default(false)
-  nicheFit               Boolean   @default(false)
-  tenYearAlignment       Boolean   @default(false)
+  id                     String      @id @default(cuid())
+  projectId              String      @unique
+  project                Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  problemStatement       String      @db.Text
+  missionAlignment       Boolean     @default(false)
+  nicheFit               Boolean     @default(false)
+  tenYearAlignment       Boolean     @default(false)
   coreValueName          String
-  noCoreValueViolated    Boolean   @default(false)
-  oneYearPlanGoal        String?   @db.Text
-  isStrategicException   Boolean   @default(false)
-  strategicExceptionNote String?   @db.Text
-  noDistractionRisk      Boolean   @default(false)
+  noCoreValueViolated    Boolean     @default(false)
+  oneYearPlanGoal        String?     @db.Text
+  goalId                 String?
+  goal                   AnnualGoal? @relation(fields: [goalId], references: [id])
+  isStrategicException   Boolean     @default(false)
+  strategicExceptionNote String?     @db.Text
+  noDistractionRisk      Boolean     @default(false)
   completedAt            DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
 }
 
 model Stage2Score {
@@ -218,8 +220,44 @@ model CoreValue {
   createdAt DateTime @default(now())
 }
 
-model OneYearGoal {
-  id          String   @id @default(cuid())
-  description String   @db.Text
-  createdAt   DateTime @default(now())
+model StrategicPlan {
+  id             String            @id @default(cuid())
+  mission        String            @db.Text @default("")
+  tenYearTarget  String            @db.Text @default("")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  pillars        ThreeYearPillar[]
 }
+
+model ThreeYearPillar {
+  id        String        @id @default(cuid())
+  planId    String
+  plan      StrategicPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  title     String
+  order     Int
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  yearPlan  OneYearPlan?
+}
+
+model OneYearPlan {
+  id        String          @id @default(cuid())
+  pillarId  String          @unique
+  pillar    ThreeYearPillar @relation(fields: [pillarId], references: [id], onDelete: Cascade)
+  title     String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  goals     AnnualGoal[]
+}
+
+model AnnualGoal {
+  id         String        @id @default(cuid())
+  planId     String
+  plan       OneYearPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  title      String        @db.Text
+  order      Int
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  stage1s    Stage1Data[]
+}
+

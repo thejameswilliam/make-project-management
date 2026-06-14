@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { SettingsManager } from "@/components/SettingsManager"
+import { getOrCreateStrategicPlan } from "@/app/actions/settings"
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions)
@@ -11,9 +12,9 @@ export default async function SettingsPage() {
 
   const currentUserId = (session?.user as { id?: string })?.id ?? ""
 
-  const [coreValues, oneYearGoals, users] = await Promise.all([
+  const [coreValues, strategicPlan, users] = await Promise.all([
     prisma.coreValue.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.oneYearGoal.findMany({ orderBy: { createdAt: "asc" } }),
+    getOrCreateStrategicPlan(),
     prisma.user.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, email: true, role: true } }),
   ])
 
@@ -27,7 +28,7 @@ export default async function SettingsPage() {
       </div>
       <SettingsManager
         coreValues={coreValues}
-        oneYearGoals={oneYearGoals}
+        strategicPlan={strategicPlan}
         users={users}
         currentUserId={currentUserId}
       />
