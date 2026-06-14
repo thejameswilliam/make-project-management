@@ -15,7 +15,10 @@ export default async function NewProjectPage() {
     prisma.coreValue.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.oneYearPlan.findMany({
       orderBy: { pillar: { order: "asc" } },
-      include: { goals: { orderBy: { order: "asc" } } },
+      include: {
+        goals: { orderBy: { order: "asc" } },
+        pillar: { select: { title: true } },
+      },
     }),
     prisma.strategicPlan.findFirst({ select: { mission: true, tenYearTarget: true } }),
     role !== "ADMIN"
@@ -52,7 +55,7 @@ export default async function NewProjectPage() {
       ) : (
         <NewProjectForm
           coreValues={coreValues}
-          yearPlans={yearPlans}
+          yearPlans={yearPlans.map((p) => ({ ...p, pillarTitle: p.pillar.title }))}
           mission={strategicPlan?.mission ?? ""}
           tenYearTarget={strategicPlan?.tenYearTarget ?? ""}
         />

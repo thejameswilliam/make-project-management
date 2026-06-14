@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 
 type CoreValue = { id: string; name: string }
 type Goal = { id: string; title: string; order: number }
-type YearPlan = { id: string; title: string; goals: Goal[] }
+type YearPlan = { id: string; title: string; pillarTitle: string; goals: Goal[] }
 
 type FormData = {
   name: string
@@ -409,7 +409,7 @@ export function NewProjectForm({
                 >
                   <option value="">Select a goal…</option>
                   {yearPlans.map((plan) => (
-                    <optgroup key={plan.id} label={plan.title}>
+                    <optgroup key={plan.id} label={plan.pillarTitle}>
                       {plan.goals.map((goal) => (
                         <option key={goal.id} value={goal.id}>
                           {goal.order}. {goal.title}
