@@ -135,6 +135,11 @@ export default async function StrategyPage() {
                     ) : (
                       <p className="text-gray-400 italic text-sm">Untitled pillar</p>
                     )}
+                    {pillar.description && (
+                      <p className="mt-1 text-xs text-gray-500 leading-snug">
+                        {pillar.description}
+                      </p>
+                    )}
                   </div>
 
                   {/* 1-Year Plan */}

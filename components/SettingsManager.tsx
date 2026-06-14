@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   addCoreValue, deleteCoreValue,
-  updateMission, updateTenYearTarget, updatePillarTitle, updateYearPlanTitle,
+  updateMission, updateTenYearTarget, updatePillarTitle, updatePillarDescription, updateYearPlanTitle,
   addGoal, updateGoal, deleteGoal,
   updateUserRole, createUser,
 } from "@/app/actions/settings"
@@ -14,7 +14,7 @@ type UserRecord = { id: string; name: string | null; email: string; role: string
 
 type Goal = { id: string; title: string; order: number }
 type YearPlan = { id: string; title: string; goals: Goal[] }
-type Pillar = { id: string; title: string; order: number; yearPlan: YearPlan | null }
+type Pillar = { id: string; title: string; description: string; order: number; yearPlan: YearPlan | null }
 type Plan = { id: string; mission: string; tenYearTarget: string; pillars: Pillar[] }
 
 const ROLE_OPTIONS = [
@@ -59,7 +59,11 @@ export function SettingsManager({
   const [pillarDrafts, setPillarDrafts] = useState<Record<string, string>>(
     Object.fromEntries(strategicPlan.pillars.map((p) => [p.id, p.title]))
   )
+  const [pillarDescDrafts, setPillarDescDrafts] = useState<Record<string, string>>(
+    Object.fromEntries(strategicPlan.pillars.map((p) => [p.id, p.description]))
+  )
   const [savingPillarId, setSavingPillarId] = useState<string | null>(null)
+  const [savingPillarDescId, setSavingPillarDescId] = useState<string | null>(null)
 
   const [planDrafts, setPlanDrafts] = useState<Record<string, string>>(
     Object.fromEntries(
@@ -122,6 +126,13 @@ export function SettingsManager({
     setSavingPillarId(pillarId)
     await updatePillarTitle(pillarId, pillarDrafts[pillarId] ?? "")
     setSavingPillarId(null)
+    router.refresh()
+  }
+
+  async function handleSavePillarDesc(pillarId: string) {
+    setSavingPillarDescId(pillarId)
+    await updatePillarDescription(pillarId, pillarDescDrafts[pillarId] ?? "")
+    setSavingPillarDescId(null)
     router.refresh()
   }
 
@@ -429,6 +440,27 @@ export function SettingsManager({
                       className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-700 disabled:opacity-40 transition-colors whitespace-nowrap"
                     >
                       {savingPillarId === pillar.id ? "Saving…" : "Save"}
+                    </button>
+                  </div>
+                  <div className="mt-2">
+                    <textarea
+                      value={pillarDescDrafts[pillar.id] ?? ""}
+                      onChange={(e) =>
+                        setPillarDescDrafts((d) => ({ ...d, [pillar.id]: e.target.value }))
+                      }
+                      placeholder="Pillar description…"
+                      rows={2}
+                      className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+                    />
+                    <button
+                      onClick={() => handleSavePillarDesc(pillar.id)}
+                      disabled={
+                        savingPillarDescId === pillar.id ||
+                        (pillarDescDrafts[pillar.id] ?? "") === pillar.description
+                      }
+                      className="mt-1 px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-700 disabled:opacity-40 transition-colors"
+                    >
+                      {savingPillarDescId === pillar.id ? "Saving…" : "Save"}
                     </button>
                   </div>
                 </div>
