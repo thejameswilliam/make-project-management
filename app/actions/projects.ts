@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
 
 type SessionUser = { id: string; role: string }
 
@@ -84,6 +85,39 @@ export async function deleteProject(projectId: string) {
   await getUser()
   await prisma.project.delete({ where: { id: projectId } })
   redirect("/")
+}
+
+export async function updateStage1(
+  projectId: string,
+  projectName: string,
+  data: Omit<Stage1Input, "name">
+): Promise<{ error?: string } | void> {
+  const { role } = await getUser()
+  if (role !== "ADMIN") return { error: "Admin role required" }
+
+  await prisma.$transaction([
+    prisma.project.update({
+      where: { id: projectId },
+      data: { name: projectName.trim() },
+    }),
+    prisma.stage1Data.update({
+      where: { projectId },
+      data: {
+        problemStatement: data.problemStatement,
+        missionAlignment: data.missionAlignment,
+        nicheFit: data.nicheFit,
+        tenYearAlignment: data.tenYearAlignment,
+        coreValueName: data.coreValueName,
+        noCoreValueViolated: data.noCoreValueViolated,
+        goalId: data.goalId || null,
+        isStrategicException: data.isStrategicException,
+        strategicExceptionNote: data.strategicExceptionNote || null,
+        noDistractionRisk: data.noDistractionRisk,
+      },
+    }),
+  ])
+
+  revalidatePath(`/projects/${projectId}`)
 }
 
 // ─── Stage 2 ────────────────────────────────────────────────────────────────

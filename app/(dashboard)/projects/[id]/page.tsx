@@ -17,7 +17,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
   const userId = sessionUser?.id ?? ""
   const userRole = sessionUser?.role ?? "STAFF"
 
-  const [project, leaders] = await Promise.all([
+  const [project, leaders, coreValues, yearPlans, strategicPlan] = await Promise.all([
     prisma.project.findUnique({
       where: { id: params.id },
       include: {
@@ -40,6 +40,15 @@ export default async function ProjectPage({ params }: { params: { id: string } }
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
     }),
+    prisma.coreValue.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.oneYearPlan.findMany({
+      orderBy: { pillar: { order: "asc" } },
+      include: {
+        goals: { orderBy: { order: "asc" } },
+        pillar: { select: { title: true } },
+      },
+    }),
+    prisma.strategicPlan.findFirst({ select: { mission: true, tenYearTarget: true } }),
   ])
 
   if (!project) notFound()
@@ -99,7 +108,17 @@ export default async function ProjectPage({ params }: { params: { id: string } }
 
       {/* Stage pipeline */}
       {project.stage1 && (
-        <Stage1Panel data={project.stage1} goalTitle={project.stage1.goal?.title} />
+        <Stage1Panel
+          data={project.stage1}
+          goalTitle={project.stage1.goal?.title}
+          userRole={userRole}
+          projectId={project.id}
+          projectName={project.name}
+          coreValues={coreValues}
+          yearPlans={yearPlans.map((p) => ({ ...p, pillarTitle: p.pillar.title }))}
+          mission={strategicPlan?.mission ?? ""}
+          tenYearTarget={strategicPlan?.tenYearTarget ?? ""}
+        />
       )}
 
       <Stage2Panel
