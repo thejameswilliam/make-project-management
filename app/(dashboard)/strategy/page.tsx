@@ -30,7 +30,10 @@ const PILLAR_COLORS = [
 ]
 
 export default async function StrategyPage() {
-  const plan = await getOrCreateStrategicPlan()
+  const [plan, coreValues] = await Promise.all([
+    getOrCreateStrategicPlan(),
+    prisma.coreValue.findMany({ orderBy: { createdAt: "asc" } }),
+  ])
 
   // Fetch projects linked to goals in this plan
   const goalIds = plan.pillars.flatMap((p) =>
@@ -76,6 +79,25 @@ export default async function StrategyPage() {
           How our work today connects to where we're going.
         </p>
       </div>
+
+      {/* Core Values */}
+      {coreValues.length > 0 && (
+        <div className="mb-8">
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+            Core Values
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {coreValues.map((cv) => (
+              <span
+                key={cv.id}
+                className="text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-1.5"
+              >
+                {cv.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 10-Year Target */}
       <div className="relative mb-2">
