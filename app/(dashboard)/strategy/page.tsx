@@ -86,14 +86,16 @@ export default async function StrategyPage() {
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
             Core Values
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-3 gap-3">
             {coreValues.map((cv) => (
-              <span
+              <div
                 key={cv.id}
-                className="text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-1.5"
+                className="bg-white border border-gray-200 rounded-xl px-5 py-5"
               >
-                {cv.name}
-              </span>
+                <p className="text-[1.4em] font-bold text-gray-900 leading-[1.2]">
+                  {cv.name}
+                </p>
+              </div>
             ))}
           </div>
         </div>
