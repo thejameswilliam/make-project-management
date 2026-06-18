@@ -59,7 +59,7 @@ export async function createProject(data: Stage1Input): Promise<{ error: string 
     data: {
       name: data.name,
       proposedById: userId,
-      currentStage: 2,
+      currentStage: 1,
       stage1: {
         create: {
           problemStatement: data.problemStatement,
@@ -85,6 +85,13 @@ export async function deleteProject(projectId: string) {
   await getUser()
   await prisma.project.delete({ where: { id: projectId } })
   redirect("/")
+}
+
+export async function advanceFromStage1(projectId: string) {
+  const { role } = await getUser()
+  assertLeader(role)
+  await prisma.project.update({ where: { id: projectId }, data: { currentStage: 2 } })
+  redirect(`/projects/${projectId}`)
 }
 
 export async function updateStage1(

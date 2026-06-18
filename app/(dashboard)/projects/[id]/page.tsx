@@ -114,6 +114,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
           userRole={userRole}
           projectId={project.id}
           projectName={project.name}
+          currentStage={project.currentStage}
           coreValues={coreValues}
           yearPlans={yearPlans.map((p) => ({ ...p, pillarTitle: p.pillar.title }))}
           mission={strategicPlan?.mission ?? ""}

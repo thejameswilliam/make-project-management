@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { StagePanelHeader, Section, CheckRow } from "./shared"
-import { updateStage1 } from "@/app/actions/projects"
+import { updateStage1, advanceFromStage1 } from "@/app/actions/projects"
 import { cn } from "@/lib/utils"
 import type { Stage1Data } from "@prisma/client"
 
@@ -27,13 +27,14 @@ export function Stage1Panel({
   userRole: string
   projectId: string
   projectName: string
+  currentStage: number
   coreValues?: CoreValue[]
   yearPlans?: YearPlan[]
   mission?: string
   tenYearTarget?: string
 }) {
   const router = useRouter()
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(currentStage === 1)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -99,6 +100,7 @@ export function Stage1Panel({
   }
 
   const isAdmin = userRole === "ADMIN"
+  const isLeader = userRole === "LEADERSHIP" || userRole === "ADMIN"
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 mb-4 overflow-hidden">
@@ -151,14 +153,26 @@ export function Stage1Panel({
             <CheckRow checked={data.noDistractionRisk} label="No existing projects will be abandoned" />
           </Section>
 
-          {isAdmin && (
-            <div className="pt-2 border-t border-gray-100">
-              <button
-                onClick={() => setEditing(true)}
-                className="text-xs text-gray-400 hover:text-orange-600 transition-colors font-medium"
-              >
-                Edit Stage 1 →
-              </button>
+          {(isAdmin || isLeader) && (
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+              {isAdmin && (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="text-xs text-gray-400 hover:text-orange-600 transition-colors font-medium"
+                >
+                  Edit Stage 1
+                </button>
+              )}
+              {currentStage === 1 && (
+                <form action={advanceFromStage1.bind(null, projectId)}>
+                  <button
+                    type="submit"
+                    className="text-xs bg-orange-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-orange-700 transition-colors"
+                  >
+                    Advance to Scope & Resources →
+                  </button>
+                </form>
+              )}
             </div>
           )}
         </div>
