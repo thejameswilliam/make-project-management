@@ -17,6 +17,7 @@ export function Stage1Panel({
   userRole,
   projectId,
   projectName,
+  currentStage,
   coreValues = [],
   yearPlans = [],
   mission = "",
